@@ -1,198 +1,89 @@
-// content.js
-// Purpose: intercept Enter or form submit to scan prompt, but avoid interception while IME composing.
 
-// configurable selector(s) - update to match the input(s)/textarea(s) and forms on target pages
-const INPUT_SELECTOR = 'textarea, input[type="text"], input[type="search"]';
-const FORM_SELECTOR = 'form';
+// -------------------------------
+// PHASE 2 — STEP 1 (Pushu)
+// Prepare environment for interception
+// -------------------------------
 
-// global flag to track IME composition state
+// Debug flag — turn off in production
+const DEBUG = true;
+
+// Retry duration for scanning dynamic DOM
+const RETRY_MS = 1500;
+
+// For IME text composition (Hindi, Japanese, etc.)
 let composing = false;
 
-// 1) Composition events - needed for IME (Hindi/Japanese/Korean...)
-document.addEventListener('compositionstart', () => {
-  composing = true;
-});
-document.addEventListener('compositionend', () => {
-  // compositionend fires AFTER the final text is applied to the input
-  // small timeout not usually needed, but keeps behaviour predictable
-  setTimeout(() => { composing = false; }, 0);
-});
+// Alive log
+if (DEBUG) console.log("Content script loaded and ready.");
 
-// 2) Helper: find nearest form for a given element
-function findNearestForm(el) {
-  while (el && el !== document.body) {
-    if (el.tagName && el.tagName.toLowerCase() === 'form') return el;
-    el = el.parentElement;
-  }
-  return null;
+// Notify background script (safe if background exists)
+chrome.runtime.sendMessage({ status: "content_script_ready" });
+
+
+// -------------------------------
+// PHASE 2 — STEP 2 (Pushu)
+// Prompt box detector (ChatGPT / Gemini / Claude / Poe / etc.)
+// -------------------------------
+
+function findPromptBox() {
+  return document.querySelector("textarea, [contenteditable='true']");
 }
 
-// 3) Helper: trigger scan and return a Promise resolving to {score, risk}
-function scanPrompt(promptText, timeoutMs = 5000) {
-  return new Promise((resolve) => {
-    let settled = false;
+function waitForPromptBox() {
+  const box = findPromptBox();
 
-    try {
-      chrome.runtime.sendMessage(
-        { action: 'scanPrompt', prompt: promptText },
-        (res) => {
-          if (settled) return;
-          settled = true;
-          // If background didn't respond properly, resolve safe fallback
-          if (!res || typeof res.score === 'undefined') {
-            resolve({ score: 0, risk: 'allow' });
-          } else {
-            resolve(res);
-          }
-        }
-      );
-    } catch (err) {
-      // If sendMessage throws (e.g. extension not active), treat as allow
-      if (!settled) {
-        settled = true;
-        resolve({ score: 0, risk: 'allow' });
-      }
-    }
-
-    // Safety timeout: if background takes too long, default to allow (or you can default to warn)
-    setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        resolve({ score: 0, risk: 'allow' });
-      }
-    }, timeoutMs);
-  });
-}
-
-// 4) Handler: when Enter pressed inside inputs
-function onKeyDownHandler(e) {
-  // Only care about Enter key
-  if (e.key !== 'Enter') return;
-
-  // If IME composition is active, do not intercept Enter
-  if (composing) {
-    // Let IME finalize; don't preventDefault
+  if (!box) {
+    if (DEBUG) console.log("Prompt box not found. Retrying...");
+    setTimeout(waitForPromptBox, RETRY_MS);
     return;
   }
 
-  // find target input / form
-  const target = e.target;
-  if (!target) return;
+  if (DEBUG) console.log("Prompt box found.");
 
-  // Optional: if target has contenteditable, get text differently
-  const promptText = (target.value !== undefined) ? target.value : target.innerText || '';
-
-  // If empty, do nothing
-  if (!promptText.trim()) return;
-
-  // Prevent default submission so we can scan first
-  e.preventDefault();
-  e.stopPropagation();
-
-  // Run the scan
-  scanPrompt(promptText).then((res) => {
-    const { risk } = res || {};
-    if (risk === 'block') {
-      // Show UI/notification — keep it simple for now
-      // Replace with your popup/TOAST UI code as needed
-      alert('Your message was blocked for safety. Please edit and try again.');
-      // do not submit
-      return;
-    }
-
-    if (risk === 'warn') {
-      // show a warning but allow user to confirm submit
-      const proceed = confirm('This prompt may be risky. Continue?');
-      if (!proceed) return;
-    }
-
-    // If allow (or confirmed), submit the form if exists, otherwise simulate Enter (send to background/app)
-    const form = findNearestForm(target);
-    if (form) {
-      // Use form.requestSubmit if available — preserves submit handlers
-      if (typeof form.requestSubmit === 'function') {
-        form.requestSubmit();
-      } else {
-        // fallback
-        form.submit();
-      }
-    } else {
-      // No form: you may want to trigger the site's native send action.
-      // Best effort: dispatch an 'Enter' KeyboardEvent that is not cancellable
-      const enterEvent = new KeyboardEvent('keydown', {
-        key: 'Enter',
-        code: 'Enter',
-        bubbles: true,
-        cancelable: false,
-      });
-      target.dispatchEvent(enterEvent);
-    }
-  });
+  attachKeyListener(box);
 }
 
-// 5) Handler for form submit (covers button-click submit or JS submit)
-function onFormSubmitHandler(event) {
-  // If composing, allow native submit to continue (user may be finalizing IME)
+// Start scanning
+waitForPromptBox();
+
+
+// -------------------------------
+// PHASE 2 — STEP 3 (Pushu)
+// Intercept Enter key & capture prompt
+// -------------------------------
+
+// Main key handler
+function keyHandler(e) {
+  // Allow Shift+Enter for new lines
+  if (e.key === "Enter" && e.shiftKey) return;
+
+  // Avoid breaking IME input
   if (composing) return;
 
-  const form = event.target;
-  if (!form) return;
+  // Catch the normal Enter press
+  if (e.key === "Enter") {
+    e.preventDefault();  // Stop auto-send
 
-  // gather prompt text from form inputs - simple heuristic: first textarea or text input
-  let promptText = '';
-  const textarea = form.querySelector('textarea');
-  if (textarea) promptText = textarea.value;
-  else {
-    const textInput = form.querySelector('input[type="text"], input[type="search"], input:not([type])');
-    if (textInput) promptText = textInput.value;
+    const box = findPromptBox();
+    if (!box) return;
+
+    // Extract prompt text based on element type
+    const prompt = ("value" in box) ? box.value : box.innerText;
+
+    if (DEBUG) console.log("Captured prompt:", prompt);
+
+    // Send prompt to background.js for scanning
+    chrome.runtime.sendMessage({
+      type: "SCAN_PROMPT",
+      prompt: prompt
+    });
   }
-
-  // If empty or whitespace, allow submit
-  if (!promptText || !promptText.trim()) return;
-
-  // Prevent default submit to scan first
-  event.preventDefault();
-  event.stopPropagation();
-
-  scanPrompt(promptText).then((res) => {
-    const { risk } = res || {};
-    if (risk === 'block') {
-      alert('Submission blocked by policy. Please modify content.');
-      return;
-    }
-    if (risk === 'warn') {
-      const ok = confirm('This looks risky. Proceed?');
-      if (!ok) return;
-    }
-
-    // proceed with original submission
-    if (typeof form.requestSubmit === 'function') {
-      form.requestSubmit();
-    } else {
-      form.submit();
-    }
-  });
 }
 
-// 6) Attach listeners to document (delegation-style)
-function attachListeners() {
-  // keydown on document captures Enter from inputs
-  document.addEventListener('keydown', onKeyDownHandler, true); // capture phase to intercept early
+// Attach the key handler safely
+function attachKeyListener(box) {
+  box.removeEventListener("keydown", keyHandler); // prevent duplicate listeners
+  box.addEventListener("keydown", keyHandler);
 
-  // form submit listener
-  document.addEventListener('submit', onFormSubmitHandler, true); // capture
+  if (DEBUG) console.log("Interception listener attached.");
 }
-
-// Initialize immediately
-attachListeners();
-
-// 7) Cleanup function (optional) if you later unload the content script
-function detachListeners() {
-  document.removeEventListener('keydown', onKeyDownHandler, true);
-  document.removeEventListener('submit', onFormSubmitHandler, true);
-  document.removeEventListener('compositionstart', () => { composing = true; });
-  document.removeEventListener('compositionend', () => { composing = false; });
-}
-
-// Export for testing (if using bundler) - otherwise ignore
-// window._myExtension = { detachListeners };

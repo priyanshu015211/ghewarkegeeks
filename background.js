@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // background.js (minimal scoring + messenger)
 function scorePrompt(prompt) {
   let score = 0;
@@ -39,3 +40,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // keep channel open for async callback
   }
 });
+=======
+console.log("Background script is active");
+
+// Listener to avoid 'receiving end does not exist'
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  console.log("Message received in background:", msg);
+});
+>>>>>>> 1a34a2e (feat: updated interception logic (steps 1-5))
