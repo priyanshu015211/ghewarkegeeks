@@ -124,3 +124,22 @@ chrome.runtime.onMessage.addListener((msg) => {
     }
   }
 });
+function findPromptBox() {
+  // --- ChatGPT (newer UI) ---
+  let box = document.querySelector("textarea[data-id='root']");
+
+  // --- ChatGPT (fallback) ---
+  if (!box) box = document.querySelector("textarea");
+
+  // --- Gemini ---
+  if (!box) box = document.querySelector("textarea[aria-label='Write a message']");
+
+  // --- Claude ---
+  if (!box) box = document.querySelector("textarea[placeholder*='Ask Claude']");
+
+  // --- Poe, OpenRouter, fallback contenteditable ---
+  if (!box) box = document.querySelector("[contenteditable='true']");
+
+  return box;
+}
+
