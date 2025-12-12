@@ -1,29 +1,30 @@
-
-// -------------------------------
-// PHASE 2 — STEP 1 (Pushu)
-// Prepare environment for interception
-// -------------------------------
+// --------------------------------------------------
+// LLM SAFETY EXTENSION - CONTENT SCRIPT (CLEAN VERSION)
+// Phase 2: Prompt Interception Logic
+// Owner: Pushu
+// --------------------------------------------------
 
 // Debug flag — turn off in production
 const DEBUG = true;
 
-// Retry duration for scanning dynamic DOM
+// Retry interval for dynamic DOM scanning
 const RETRY_MS = 1500;
 
 // For IME text composition (Hindi, Japanese, etc.)
 let composing = false;
 
-// Alive log
-if (DEBUG) console.log("Content script loaded and ready.");
+// Alive logs
+console.log("LLM Safety content script loaded");
+if (DEBUG) console.log("Content script loaded and ready");
 
-// Notify background script (safe if background exists)
+// Notify background that content script is active
 chrome.runtime.sendMessage({ status: "content_script_ready" });
 
 
-// -------------------------------
-// PHASE 2 — STEP 2 (Pushu)
-// Prompt box detector (ChatGPT / Gemini / Claude / Poe / etc.)
-// -------------------------------
+// --------------------------------------------------
+// STEP 1 — Locate Prompt Box Dynamically
+// Works for: ChatGPT, Gemini, Claude, Poe, etc.
+// --------------------------------------------------
 
 function findPromptBox() {
   return document.querySelector("textarea, [contenteditable='true']");
@@ -38,41 +39,38 @@ function waitForPromptBox() {
     return;
   }
 
-  if (DEBUG) console.log("Prompt box found.");
-
+  if (DEBUG) console.log("Prompt box found");
   attachKeyListener(box);
 }
 
-// Start scanning
+// Start scanning on script load
 waitForPromptBox();
 
 
-// -------------------------------
-// PHASE 2 — STEP 3 (Pushu)
-// Intercept Enter key & capture prompt
-// -------------------------------
+// --------------------------------------------------
+// STEP 2 — Intercept Enter Key + Capture Prompt
+// --------------------------------------------------
 
-// Main key handler
 function keyHandler(e) {
-  // Allow Shift+Enter for new lines
+  // Allow Shift+Enter → Multiline input
   if (e.key === "Enter" && e.shiftKey) return;
 
-  // Avoid breaking IME input
+  // IME language input should not be interrupted
   if (composing) return;
 
-  // Catch the normal Enter press
+  // Normal Enter pressed → interception happens here
   if (e.key === "Enter") {
-    e.preventDefault();  // Stop auto-send
+    e.preventDefault(); // stop auto-send
 
     const box = findPromptBox();
     if (!box) return;
 
-    // Extract prompt text based on element type
+    // Extract prompt content safely
     const prompt = ("value" in box) ? box.value : box.innerText;
 
     if (DEBUG) console.log("Captured prompt:", prompt);
 
-    // Send prompt to background.js for scanning
+    // Send to background for scanning
     chrome.runtime.sendMessage({
       type: "SCAN_PROMPT",
       prompt: prompt
@@ -80,10 +78,49 @@ function keyHandler(e) {
   }
 }
 
-// Attach the key handler safely
+
+// --------------------------------------------------
+// STEP 3 — Add & Manage Listeners Safely
+// --------------------------------------------------
+
 function attachKeyListener(box) {
-  box.removeEventListener("keydown", keyHandler); // prevent duplicate listeners
+  box.removeEventListener("keydown", keyHandler); // avoid duplicates
   box.addEventListener("keydown", keyHandler);
+
+  // IME listeners
+  box.addEventListener("compositionstart", () => composing = true);
+  box.addEventListener("compositionend", () => composing = false);
 
   if (DEBUG) console.log("Interception listener attached.");
 }
+
+
+// --------------------------------------------------
+// STEP 4 — Receive FINAL_PROMPT from Background
+// Insert sanitized/approved prompt and auto-send
+// --------------------------------------------------
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === "FINAL_PROMPT") {
+    const box = findPromptBox();
+    if (!box) return;
+
+    const finalPrompt = msg.prompt;
+
+    // Insert text
+    if ("value" in box) box.value = finalPrompt;
+    else box.innerText = finalPrompt;
+
+    // Trigger input event so UI updates
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Try to find send button
+    const sendBtn =
+      document.querySelector('button[type="submit"], button[aria-label*="send"]');
+
+    if (sendBtn) {
+      sendBtn.click();
+      if (DEBUG) console.log("Final prompt sent programmatically");
+    }
+  }
+});

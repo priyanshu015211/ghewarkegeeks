@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
   "manifest_version": 3,
   "name": "LLM Safety Extension",
@@ -29,3 +30,41 @@
     }
   ]
 }
+=======
+{
+  "manifest_version": 3,
+  "name": "LLM Safety Extension",
+  "version": "1.0.0",
+  "description": "Intercepts prompts and flags risky content before sending to LLMs.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://gemini.google.com/*",
+    "https://claude.ai/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LLM Safety"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*/*",
+        "http://*/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+ 
+}
+>>>>>>> 0290880 (POP UP CSS)
