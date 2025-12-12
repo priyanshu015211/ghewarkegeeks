@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "LLM Safety Extension",
+  "version": "1.0.0",
+  "description": "Minimal manifest v3 for LLM Safety Extension (intercept & scan prompts).",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://bard.google.com/*",
+    "https://claude.ai/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
