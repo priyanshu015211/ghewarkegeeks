@@ -1,70 +1,28 @@
-<<<<<<< HEAD
 {
   "manifest_version": 3,
-  "name": "LLM Safety Extension",
-  "version": "1.0.0",
-  "description": "Minimal manifest v3 for LLM Safety Extension (intercept & scan prompts).",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage"
-  ],
-  "host_permissions": [
-    "https://chat.openai.com/*",
-    "https://bard.google.com/*",
-    "https://claude.ai/*",
-    "http://*/*",
-    "https://*/*"
-  ],
+  "name": "LLM Safety Guard",
+  "version": "1.0",
+  "description": "Scans page input for unsafe prompts and warns the user.",
+  
+  "permissions": ["storage", "scripting", "activeTab"],
+
   "background": {
     "service_worker": "background.js"
   },
-  "action": {
-    "default_popup": "popup.html"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://*/*", "http://*/*"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ]
-}
-=======
-{
-  "manifest_version": 3,
-  "name": "LLM Safety Extension",
-  "version": "1.0.0",
-  "description": "Intercepts prompts and flags risky content before sending to LLMs.",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "storage"
-  ],
-  "host_permissions": [
-    "https://chat.openai.com/*",
-    "https://gemini.google.com/*",
-    "https://claude.ai/*",
-    "http://*/*",
-    "https://*/*"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
+
   "action": {
     "default_popup": "popup.html",
-    "default_title": "LLM Safety"
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
   },
+
   "content_scripts": [
     {
-      "matches": [
-        "https://*/*",
-        "http://*/*"
-      ],
-      "js": ["content.js"],
-      "run_at": "document_idle"
+      "matches": ["<all_urls>"],
+      "js": ["content.js", "scanner.js"]
     }
   ]
- 
 }
->>>>>>> 0290880 (POP UP CSS)
