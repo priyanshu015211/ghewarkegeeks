@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LLM Safety</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="root">
+    <!-- Score Badge at Top -->
+    <div id="scoreBadge" class="badge">
+      Risk Score: <span id="scoreVal">--</span>
+    </div>
+    
+    <!-- Risk Level Indicator -->
+    <div id="riskLevel" class="risk-indicator">
+      <span id="riskText">🔍 Analyzing...</span>
+    </div>
+    
+    <!-- List of Risk Reasons -->
+    <div id="reasons" class="reasons-container">
+      <h4>Risk Factors Detected:</h4>
+      <ul id="reasonsList">
+        <li>Waiting for scan...</li>
+      </ul>
+    </div>
+    
+    <!-- Sanitized Prompt Preview (hidden by default) -->
+    <div id="sanitizedPreview" class="sanitized-box" hidden>
+      <h4>Sanitized Version:</h4>
+      <pre id="sanitizedText"></pre>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="buttons">
+      <button id="allowBtn" class="btn btn-green">Allow Anyway</button>
+      <button id="sanitizeBtn" class="btn btn-yellow">Use Sanitized</button>
+      <button id="cancelBtn" class="btn btn-red">Cancel</button>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

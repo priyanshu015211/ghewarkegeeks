@@ -1,0 +1,227 @@
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Body */
+body {
+  width: 350px;
+  min-height: 400px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 0;
+}
+
+/* Main Container */
+#root {
+  background: white;
+  border-radius: 8px;
+  margin: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Score Badge */
+#scoreBadge {
+  text-align: center;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  background: #f5f5f5;
+  border: 2px solid #e0e0e0;
+}
+
+#scoreVal {
+  color: #667eea;
+  font-size: 32px;
+  display: block;
+  margin-top: 5px;
+}
+
+/* Risk Level Indicator */
+.risk-indicator {
+  text-align: center;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.risk-safe {
+  background: #d4edda;
+  color: #155724;
+  border: 2px solid #c3e6cb;
+}
+
+.risk-warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #ffc107;
+}
+
+.risk-danger {
+  background: #f8d7da;
+  color: #721c24;
+  border: 2px solid #f5c6cb;
+}
+
+/* Reasons Container */
+.reasons-container {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.reasons-container h4 {
+  margin-bottom: 10px;
+  color: #495057;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#reasonsList {
+  list-style: none;
+  padding: 0;
+}
+
+#reasonsList li {
+  padding: 8px;
+  margin-bottom: 5px;
+  background: white;
+  border-left: 3px solid #667eea;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #333;
+}
+
+/* Sanitized Preview Box */
+.sanitized-box {
+  margin-bottom: 15px;
+  padding: 12px;
+  background: #e7f3ff;
+  border-radius: 6px;
+  border: 1px solid #b3d9ff;
+}
+
+.sanitized-box h4 {
+  margin-bottom: 8px;
+  color: #004085;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#sanitizedText {
+  max-height: 100px;
+  overflow-y: auto;
+  padding: 10px;
+  background: white;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #333;
+  border: 1px solid #cfe2ff;
+}
+
+/* Buttons Container */
+.buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+/* Button Styles */
+.btn {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+/* Green Button (Allow) */
+.btn-green {
+  background: #28a745;
+  color: white;
+}
+
+.btn-green:hover {
+  background: #218838;
+}
+
+/* Yellow Button (Sanitize) */
+.btn-yellow {
+  background: #ffc107;
+  color: #333;
+}
+
+.btn-yellow:hover {
+  background: #e0a800;
+}
+
+/* Red Button (Cancel) */
+.btn-red {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-red:hover {
+  background: #c82333;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#root {
+  animation: fadeIn 0.3s ease-out;
+}
