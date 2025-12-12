@@ -1,17 +1,32 @@
-// -------------------------------------------------------
-// LLM Safety Extension - Background Service Worker (Phase 1)
-// Minimal version: alive logs + message listener
-// -------------------------------------------------------
-
 console.log("Background script is active");
 console.log("LLM Safety Extension background loaded");
 
-// Prevent 'receiving end does not exist' errors
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+chrome.runtime.onMessage.addMessage.addListener((msg, sender, sendResponse) => {
   console.log("Message received in background:", msg);
 
-  // Phase 1: No scoring logic yet, just acknowledge message
-  sendResponse({ status: "ok" });
+  // 1. INTERCEPT message: sent from content script when user hits Enter
+  if (msg.type === "INTERCEPT") {
+    const score = scorePrompt(msg.prompt);
 
-  // No async logic → return nothing
+    const entry = {
+      text: msg.prompt,
+      score,
+      time: Date.now()
+    };
+
+    saveLog(entry);
+
+    const decision = getRiskLevel(score);
+
+    sendResponse({
+      decision,
+      score
+    });
+
+    return true; // keeps response channel open if needed
+  }
+
+  // 2. Default fallback (Phase 1 compatibility)
+  sendResponse({ status: "ok" });
 });
+
