@@ -142,4 +142,32 @@ function findPromptBox() {
 
   return box;
 }
+let composing = false;
+
+document.addEventListener("compositionstart", () => composing = true);
+document.addEventListener("compositionend", () => composing = false);
+function attachInterception() {
+  const box = findPromptBox();
+  if (!box) return;
+
+  box.addEventListener("keydown", (e) => {
+    if (composing) return;   // Don't block when IME active
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();  // STOP message from sending
+
+      const prompt = box.value.trim();
+
+      // Send intercepted prompt to background
+      chrome.runtime.sendMessage({
+        type: "INTERCEPT",
+        prompt
+      });
+
+      // Optional visual highlight/log
+      console.log("🔒 Intercepted:", prompt);
+    }
+  });
+}
+
 
