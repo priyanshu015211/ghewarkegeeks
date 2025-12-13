@@ -1,0 +1,20 @@
+{
+  "self_harm": [
+    { "rule": "suicide", "weight": 70 },
+    { "rule": "kill myself", "weight": 90, "suggestion": "It sounds like you are in a lot of pain. Please consider reaching out for help. You can connect with people who can support you by calling or texting 988 anytime in the US and Canada. In the UK, you can call 111." }
+  ],
+  "violence": [
+    { "rule": "bomb", "weight": 60 },
+    { "rule": "stab", "weight": 50 },
+    { "rule": "gun", "weight": 55 },
+    { "rule": "how to build a bomb", "weight": 95 },
+    { "rule": "detonate", "weight": 80 }
+  ],
+  "cybercrime": [
+    { "rule": "hack", "weight": 40 },
+    { "rule": "illegal", "weight": 30 },
+    { "rule": "deepfake", "weight": 75 },
+    { "rule": "jailbreak", "weight": 65 },
+    { "rule": "bypass filter", "weight": 70 }
+  ]
+}

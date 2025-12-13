@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LLM Safety Guard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <h2>LLM Safety Guard</h2>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-link active" data-tab="settings">Settings</button>
+        <button class="tab-link" data-tab="log">Log</button>
+        <button class="tab-link" data-tab="analytics">Analytics</button>
+        <button class="tab-link" data-tab="explanation" style="display: none;">Explanation</button>
+    </div>
+
+    <div id="settings" class="tab-content active">
+        <p>Status: <span id="status">Active</span></p>
+        <button id="toggle">Disable Scanner</button>
+
+        <div id="stats">
+            <p id="scanCountText"></p>
+            <p id="spmText"></p>
+        </div>
+
+        <div id="rule-stats">
+            <p>Active built-in rules: <span id="builtin-rule-count">0</span></p>
+            <p>Your custom rules: <span id="custom-rule-count">0</span></p>
+            <p><b>Total active rules: <span id="total-rule-count">0</span></b></p>
+        </div>
+
+        <hr>
+
+        <h4>General Settings</h4>
+        <div class="setting-item">
+            <label for="soundEnabled">Enable Sound</label>
+            <input type="checkbox" id="soundEnabled">
+        </div>
+        
+        <hr>
+
+        <h4>Built-in Rules</h4>
+        <div id="builtin-rules"></div>
+
+        <hr>
+
+        <h4>Custom Blocked Words</h4>
+        <textarea 
+            id="customRulesInput"
+            placeholder="Add custom blocked words, comma-separated"
+            rows="3"></textarea>
+
+        <button id="saveRulesBtn">Save Rules</button>
+    </div>
+
+    <div id="log" class="tab-content">
+        <div class="log-header">
+            <h4>Warning Log</h4>
+            <button id="clearLogBtn">Clear Log</button>
+        </div>
+        <div id="log-entries"></div>
+    </div>
+
+    <div id="analytics" class="tab-content">
+        <h4>Top Blocked Words</h4>
+        <div id="top-words-chart"></div>
+
+        <hr>
+
+        <h4>Detections by Category</h4>
+        <div id="category-chart"></div>
+    </div>
+
+    <div id="explanation" class="tab-content">
+        <h4>Why was this flagged?</h4>
+        <div id="explanation-content"></div>
+        <button id="explanation-back-btn">Go Back</button>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

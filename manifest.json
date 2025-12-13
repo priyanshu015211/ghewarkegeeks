@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "LLM Safety Guard",
+  "version": "1.0",
+  "description": "Scans input for unsafe text.",
+  
+  "permissions": ["storage", "alarms", "offscreen"],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+
+  "web_accessible_resources": [{
+    "resources": [
+      "model/*",
+      "model/tokenizer.json",
+      "model/config.json",
+      "model/intent_model.onnx",
+      "lib/*",
+      "offscreen.html",
+      "offscreen.js"
+    ],
+    "matches": ["<all_urls>"]
+  }]
+}
