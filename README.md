@@ -1,39 +1,77 @@
-# LLM Safety Extension
 
-The **LLM Safety Extension** is a project aimed at improving the safety standards of language models (LLMs) by addressing specification guidelines and enhancing security mechanisms.
+# 🛡️ LLM Safety Extension
 
-## Features
+A **browser extension** designed to enhance safety and ethical behavior when interacting with large language models (LLMs). This tool helps users enforce safety guidelines, filter unwanted outputs, and maintain content integrity while using AI-powered applications.
 
-- **Safety-focused**: Implements methods to ensure that language model outputs adhere to specific safety and ethical standards.
-- **Customizable**: Extensions can be easily modified to suit different safety requirements.
-- **Usability**: Ensures a friendly and accessible interface for contributors and users.
+---
 
-## Getting Started
+##  Features
 
-### Prerequisites
+*  **Safety-First Filtering**
+  Detects and restricts unsafe or undesirable responses from LLMs based on customizable rules.
 
-- A basic understanding of machine learning and natural language processing (NLP) concepts.
-- Python 3.x installed on your system.
+*  **Lightweight & Fast**
+  Built using standard web extension technologies (JavaScript, HTML, CSS) for seamless performance in compatible browsers.
 
-### Installation
+*  **Context-Aware Detection**
+  Intelligently analyzes text across web pages and user inputs to flag potentially harmful content.
 
-Clone this repository to your local machine using:
+*  **Custom Rules Engine**
+  Easily extend or edit filtering rules (JSON based) to tailor safety requirements for your use-case.
 
-```bash
-git clone https://github.com/priyanshu015211/ghewarkegeeks.git
-```
+---
 
-Navigate to the project directory:
+##  Installation
 
-```bash
-cd ghewarkegeeks
-```
+1. **Clone the repository**
 
-## Contributing
+   ```sh
+   git clone https://github.com/priyanshu015211/ghewarkegeeks.git
+   ```
+2. **Navigate into the folder**
 
-Contributions to the project are welcome! To get started:
+   ```sh
+   cd ghewarkegeeks
+   ```
+3. **Load as an unpacked extension** in your browser using the `manifest.json`.
 
-1. Fork the repository.
-2. Create a new feature branch.
-3. Make your changes.
-4. Submit a pull request.
+> Supported Browsers: Chrome, Edge, Brave, Firefox (with extension developer mode enabled)
+
+---
+
+## 🛠️ How It Works
+
+This extension includes:
+
+* **background.js** – Core event handlers and background logic
+* **content.js** – Script injected into web pages to monitor and analyze LLM output
+* **rules.json** – Safety rules and flags
+* **popup.html / popup.js** – UI for enabling/disabling filters and managing settings
+* **style.css** – Styling for the extension UI
+
+Together, these components create a safety layer for interactions with AI models, helping users maintain control over content quality.
+
+---
+
+## 🧪 Development
+
+To contribute:
+
+1. Fork the repo
+2. Create a feature branch
+3. Make your improvements
+4. Submit a Pull Request
+
+All contributions toward better safety rules, UI upgrades, and performance improvements are welcome!
+
+---
+
+##  Contributing
+
+Feel free to open issues or propose enhancements. Whether it’s better filtering logic, UI polishing, or new safety modules — community contributions help make AI safer for everyone.
+
+---
+
+##  License
+
+This project is open source — share, adapt, and build responsibly.
