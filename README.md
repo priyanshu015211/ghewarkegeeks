@@ -1,77 +1,138 @@
 
-# 🛡️ LLM Safety Extension
+# 🛡️ GhewarkeGeeks – LLM Safety Browser Extension
 
-A **browser extension** designed to enhance safety and ethical behavior when interacting with large language models (LLMs). This tool helps users enforce safety guidelines, filter unwanted outputs, and maintain content integrity while using AI-powered applications.
-
----
-
-##  Features
-
-*  **Safety-First Filtering**
-  Detects and restricts unsafe or undesirable responses from LLMs based on customizable rules.
-
-*  **Lightweight & Fast**
-  Built using standard web extension technologies (JavaScript, HTML, CSS) for seamless performance in compatible browsers.
-
-*  **Context-Aware Detection**
-  Intelligently analyzes text across web pages and user inputs to flag potentially harmful content.
-
-*  **Custom Rules Engine**
-  Easily extend or edit filtering rules (JSON based) to tailor safety requirements for your use-case.
+A **browser extension** that adds a safety layer while interacting with **Large Language Models (LLMs)** on websites like ChatGPT, Gemini, Claude, etc.
+It detects unsafe, harmful, or restricted content in real time and alerts the user before submission or response usage.
 
 ---
 
-##  Installation
+## 🎯 Problem Statement
 
-1. **Clone the repository**
+LLMs can sometimes generate or accept:
 
-   ```sh
-   git clone https://github.com/priyanshu015211/ghewarkegeeks.git
-   ```
-2. **Navigate into the folder**
+* Harmful instructions
+* Unsafe prompts
+* Policy-violating content
+* Toxic or sensitive text
 
-   ```sh
-   cd ghewarkegeeks
-   ```
-3. **Load as an unpacked extension** in your browser using the `manifest.json`.
-
-> Supported Browsers: Chrome, Edge, Brave, Firefox (with extension developer mode enabled)
+Users often submit prompts without realizing the risks.
+This extension helps **prevent unsafe interactions** by analyzing text **locally** before it is sent or used.
 
 ---
 
-## 🛠️ How It Works
+## 🚀 Features
 
-This extension includes:
+* 🔍 **Real-Time Text Scanning**
 
-* **background.js** – Core event handlers and background logic
-* **content.js** – Script injected into web pages to monitor and analyze LLM output
-* **rules.json** – Safety rules and flags
-* **popup.html / popup.js** – UI for enabling/disabling filters and managing settings
-* **style.css** – Styling for the extension UI
+  * Monitors text typed into prompt boxes on supported websites.
 
-Together, these components create a safety layer for interactions with AI models, helping users maintain control over content quality.
+* 🧠 **AI-Based Content Classification**
+
+  * Uses a trained ML model instead of simple keyword matching.
+
+* ⚠️ **Instant Warnings**
+
+  * Highlights unsafe content and notifies the user immediately.
+
+* 🔒 **Privacy-Preserving**
+
+  * No API calls
+  * No data sent to external servers
+  * Everything runs locally
+
+* ⚙️ **Custom Rule Support**
+
+  * Safety rules can be extended or modified.
 
 ---
 
-## 🧪 Development
+## 🧩 Project Structure
 
-To contribute:
+```
+ghewarkegeeks/
+│
+├── model/              # Trained ML model files
+├── tokenizer/          # Tokenizer used for text preprocessing
+├── content.js          # Injected script to capture user input
+├── background.js       # Background logic and message handling
+├── scanner.js          # Core scanning and classification logic
+├── popup.html          # Extension UI
+├── popup.js            # UI logic
+├── style.css           # Styling for popup and alerts
+├── rules.json          # Safety rules and categories
+└── manifest.json       # Browser extension configuration
+```
+---
 
-1. Fork the repo
-2. Create a feature branch
-3. Make your improvements
+### 🔄 How they work together
+
+1. User types text on a webpage
+2. `content.js` captures the input
+3. Text is passed to the **tokenizer**
+4. Tokenized input goes to the **model**
+5. Model predicts risk category
+6. Extension blocks, warns, or allows the input
+
+---
+
+## 🛠️ Installation
+
+### Step 1: Clone the repository
+
+```bash
+git clone https://github.com/priyanshu015211/ghewarkegeeks.git
+cd ghewarkegeeks
+```
+
+### Step 2: Load extension in browser
+
+* Open Chrome / Edge / Brave
+* Go to `chrome://extensions`
+* Enable **Developer Mode**
+* Click **Load Unpacked**
+* Select the project folder
+
+---
+
+## 🌐 Supported Platforms
+
+* Google Chrome
+* Microsoft Edge
+* Brave Browser
+* Firefox (with minor adjustments)
+
+---
+
+## 🧪 Development & Contribution
+
+You can contribute by:
+
+* Improving detection accuracy
+* Adding new safety categories
+* Enhancing UI/UX
+* Optimizing performance
+
+Steps:
+
+1. Fork the repository
+2. Create a new branch
+3. Make changes
 4. Submit a Pull Request
 
-All contributions toward better safety rules, UI upgrades, and performance improvements are welcome!
+---
+
+## 📌 Use Cases
+
+* Safer AI usage for students
+* Preventing accidental policy violations
+* Ethical AI experimentation
+* Hackathons and research demos
 
 ---
 
-##  Contributing
+## ⚖️ License
 
-Feel free to open issues or propose enhancements. Whether it’s better filtering logic, UI polishing, or new safety modules — community contributions help make AI safer for everyone.
+This project is **open source**.
+Feel free to use, modify, and extend responsibly.
 
 ---
-
-##  License
-
-This project is open source — share, adapt, and build responsibly.
