@@ -1,11 +1,22 @@
 // ------------------------------------------------------
-// background.js (STABLE OFFSCREEN ROUTER)
+// background.js — FIXED (single listener, full routing)
 // ------------------------------------------------------
 
 let offscreenReady = false;
 let creatingOffscreen = null;
 
-// Ensure offscreen document exists AND is ready
+// Load rules from rules.json once at startup
+let rulesData = null;
+
+async function getRules() {
+  if (rulesData) return rulesData;
+  const url = chrome.runtime.getURL("rules.json");
+  const res = await fetch(url);
+  rulesData = await res.json();
+  return rulesData;
+}
+
+// Ensure offscreen document exists
 async function ensureOffscreen() {
   if (offscreenReady) return;
 
@@ -14,58 +25,94 @@ async function ensureOffscreen() {
     creatingOffscreen = chrome.offscreen.createDocument({
       url: "offscreen.html",
       reasons: ["BLOBS"],
-      justification: "Run ONNX ML inference"
+      justification: "Run safety pattern classifier"
     });
   }
 
   await creatingOffscreen;
-  
-  // Give it a moment to load
-  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Wait for OFFSCREEN_READY signal (max 3s)
+  await new Promise((resolve) => {
+    if (offscreenReady) return resolve();
+    const timeout = setTimeout(resolve, 3000);
+    const check = setInterval(() => {
+      if (offscreenReady) {
+        clearInterval(check);
+        clearTimeout(timeout);
+        resolve();
+      }
+    }, 100);
+  });
 }
 
-// Listen for OFFSCREEN_READY signal
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === "OFFSCREEN_READY") {
+// -------------------------------------------------------
+// SINGLE unified message listener
+// Chrome MV3 only honours `return true` from the FIRST
+// registered listener — so all message types must live here.
+// -------------------------------------------------------
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Background received:", message.type);
+
+  // ── Signal from offscreen that it is ready ──────────
+  if (message.type === "OFFSCREEN_READY") {
     console.log("Offscreen signaled READY");
     offscreenReady = true;
     sendResponse({ status: "ready" });
+    return false; // sync response, no async needed
   }
-  return false;
-});
 
-// MAIN ROUTER
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("Background received message:", message.type);
-  
+  // ── Classify text via offscreen document ────────────
   if (message.type === "CLASSIFY_TEXT") {
     (async () => {
       try {
-        console.log("Ensuring offscreen is ready...");
         await ensureOffscreen();
 
-        console.log("Sending to offscreen:", message.text.substring(0, 50) + "...");
-        
         const result = await chrome.runtime.sendMessage({
           type: "CLASSIFY_TEXT_OFFSCREEN",
           text: message.text
         });
 
-        console.log("Received from offscreen:", result);
+        console.log("Offscreen result:", result);
         sendResponse(result);
       } catch (err) {
-        console.error("Background ML error:", err);
-        sendResponse({ 
-          label: "error", 
-          confidence: 0,
-          error: err.message 
-        });
+        console.error("Background classify error:", err);
+        sendResponse({ label: "error", confidence: 0, error: err.message });
       }
     })();
-
-    return true; // async response
+    return true; // keeps port open for async sendResponse
   }
-  
-  // Handle other messages
+
+  // ── Return all rules grouped by category ────────────
+  if (message.type === "GET_RULES") {
+    getRules().then((data) => {
+      sendResponse({ rules: data });
+    }).catch(() => {
+      sendResponse({ rules: {} });
+    });
+    return true;
+  }
+
+  // ── Return the list of category names ───────────────
+  if (message.type === "GET_CATEGORIES") {
+    getRules().then((data) => {
+      sendResponse({ categories: Object.keys(data) });
+    }).catch(() => {
+      sendResponse({ categories: [] });
+    });
+    return true;
+  }
+
+  // ── Return all built-in rules as a flat array ────────
+  if (message.type === "GET_ALL_BUILTIN_RULES") {
+    getRules().then((data) => {
+      const flat = Object.values(data).flat();
+      sendResponse({ rules: flat });
+    }).catch(() => {
+      sendResponse({ rules: [] });
+    });
+    return true;
+  }
+
+  // Unknown message — no async response needed
   return false;
 });
