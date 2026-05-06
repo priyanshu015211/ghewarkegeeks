@@ -1,160 +1,109 @@
 // ------------------------------------------------------
-// offscreen.js — STABLE BERT WORDPIECE (MV3 SAFE)
+// offscreen.js — Pattern-based classifier (MV3 safe)
+// Replaces the broken ONNX pipeline. Uses rules.json
+// which actually exists, instead of intent_model.onnx
+// and config.json which do not.
 // ------------------------------------------------------
 
 console.log("Offscreen document loaded");
 
-// 🔔 Signal readiness
+// Signal background that we are ready
 chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" });
 
 // ------------------------------------------------------
-// ONNX check
+// Rules cache
 // ------------------------------------------------------
-if (typeof ort === "undefined") {
-  console.error("❌ ONNX Runtime NOT loaded");
+let rulesCache = null;
+
+async function loadRules() {
+  if (rulesCache) return rulesCache;
+  const res = await fetch(chrome.runtime.getURL("rules.json"));
+  rulesCache = await res.json();
+  console.log("✅ rules.json loaded into offscreen");
+  return rulesCache;
 }
 
 // ------------------------------------------------------
-// Globals
+// Intent boosters
+// Words/phrases that signal the user is asking HOW TO
+// do something harmful (raises confidence significantly)
 // ------------------------------------------------------
-let session = null;
-let vocab = null;
-let config = null;
+const INTENT_PATTERNS = [
+  /\bhow\s+to\b/i,
+  /\bsteps?\s+to\b/i,
+  /\bguide\s+(me\s+)?to\b/i,
+  /\bwalk\s+me\s+through\b/i,
+  /\bhelp\s+me\b/i,
+  /\bshow\s+me\s+how\b/i,
+  /\bcan\s+you\s+(teach|explain|tell)\b/i,
+  /\binstructions?\s+for\b/i,
+  /\btutorial\b/i,
+];
 
-// ------------------------------------------------------
-// Load vocab.txt (CORRECT for BERT)
-// ------------------------------------------------------
-async function loadVocab() {
-  if (vocab) return vocab;
-
-  const res = await fetch(chrome.runtime.getURL("model/vocab.txt"));
-  const text = await res.text();
-
-  vocab = {};
-  text.split("\n").forEach((token, idx) => {
-    vocab[token.trim()] = idx;
-  });
-
-  console.log("✅ vocab.txt loaded");
-  return vocab;
-}
-
-// ------------------------------------------------------
-// Load config
-// ------------------------------------------------------
-async function loadConfig() {
-  if (config) return config;
-
-  const res = await fetch(chrome.runtime.getURL("model/config.json"));
-  config = await res.json();
-
-  console.log("✅ config.json loaded");
-  return config;
-}
-
-// ------------------------------------------------------
-// Load ONNX model
-// ------------------------------------------------------
-async function loadModel() {
-  if (session) return session;
-
-  ort.env.wasm.wasmPaths = chrome.runtime.getURL("lib/");
-  session = await ort.InferenceSession.create(
-    chrome.runtime.getURL("model/intent_model.onnx")
-  );
-
-  console.log("✅ ONNX model loaded");
-  return session;
-}
-
-// ------------------------------------------------------
-// WordPiece Tokenization (BERT-correct)
-// ------------------------------------------------------
-function tokenize(text, vocab, maxLen) {
-  const CLS = "[CLS]";
-  const SEP = "[SEP]";
-  const PAD = "[PAD]";
-  const UNK = "[UNK]";
-
-  let tokens = [CLS];
-
-  text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .split(/\s+/)
-    .forEach(word => {
-      if (vocab[word] !== undefined) {
-        tokens.push(word);
-      } else {
-        tokens.push(UNK);
-      }
-    });
-
-  tokens.push(SEP);
-
-  let ids = tokens.map(t => vocab[t] ?? vocab[UNK]);
-
-  if (ids.length > maxLen) {
-    ids = ids.slice(0, maxLen);
-    ids[maxLen - 1] = vocab[SEP];
-  }
-
-  while (ids.length < maxLen) {
-    ids.push(vocab[PAD]);
-  }
-
-  return ids;
-}
-
-// ------------------------------------------------------
-// Softmax
-// ------------------------------------------------------
-function softmax(arr) {
-  const max = Math.max(...arr);
-  const exps = arr.map(v => Math.exp(v - max));
-  const sum = exps.reduce((a, b) => a + b, 0);
-  return exps.map(v => v / sum);
+function hasInstructionalIntent(text) {
+  return INTENT_PATTERNS.some(p => p.test(text));
 }
 
 // ------------------------------------------------------
 // CLASSIFY
+// Scores the text against every rule in rules.json.
+// Returns:
+//   label      — "harmful" | "neutral"
+//   confidence — 0.0–1.0
+//   score      — raw score (0–100 scale, capped at 100)
+//   matchedRules  — array of matched rule objects
+//   hasIntent  — whether instructional intent was found
+//   category   — category of the highest-weight match
 // ------------------------------------------------------
 async function classify(text) {
-  const [model, vocab, cfg] = await Promise.all([
-    loadModel(),
-    loadVocab(),
-    loadConfig()
-  ]);
+  const rules = await loadRules();
 
-  const maxLen = cfg.max_position_embeddings || 128;
+  const lower = text.toLowerCase();
+  const hasIntent = hasInstructionalIntent(text);
 
-  const ids = tokenize(text, vocab, maxLen);
+  let totalScore = 0;
+  const matchedRules = [];
 
-  const inputIds = new ort.Tensor(
-    "int64",
-    BigInt64Array.from(ids.map(BigInt)),
-    [1, maxLen]
-  );
+  // Walk every category and every rule
+  for (const [category, entries] of Object.entries(rules)) {
+    for (const entry of entries) {
+      if (lower.includes(entry.rule.toLowerCase())) {
+        let weight = entry.weight;
 
-  const attentionMask = new ort.Tensor(
-    "int64",
-    BigInt64Array.from(ids.map(v => BigInt(v !== 0 ? 1 : 0))),
-    [1, maxLen]
-  );
+        // Intent boost: +30% of the rule weight, capped
+        if (hasIntent) {
+          weight = Math.min(100, weight + Math.round(weight * 0.3));
+        }
 
-  const output = await model.run({
-    input_ids: inputIds,
-    attention_mask: attentionMask
-  });
+        totalScore += weight;
+        matchedRules.push({ ...entry, category, weight });
+      }
+    }
+  }
 
-  const logits = Array.from(output.logits.data);
-  const probs = softmax(logits);
+  // Multiple matches compound the risk (up to cap)
+  const rawScore = Math.min(100, totalScore);
 
-  const idx = probs.indexOf(Math.max(...probs));
+  // Normalize to 0.0–1.0 confidence
+  const confidence = Number((rawScore / 100).toFixed(3));
+
+  // Threshold: 0.35 → harmful (weight 35+ means at least one
+  // medium-weight rule like "hack" + intent, or one heavy rule)
+  const label = confidence >= 0.35 ? "harmful" : "neutral";
+
+  // Best-matched category (highest individual weight)
+  const topMatch = matchedRules.sort((a, b) => b.weight - a.weight)[0];
+  const category = topMatch?.category ?? "none";
+
+  console.log(`✅ Classify: label=${label} confidence=${confidence} score=${rawScore} matches=${matchedRules.length}`);
 
   return {
-    label: cfg.id2label[idx],
-    confidence: Number(probs[idx].toFixed(3))
+    label,
+    confidence,
+    score: rawScore,
+    matchedRules,
+    hasIntent,
+    category,
   };
 }
 
@@ -169,11 +118,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse(res);
       })
       .catch(err => {
-        console.error("❌ ML error:", err);
-        sendResponse({ label: "error", confidence: 0 });
+        console.error("❌ Classifier error:", err);
+        sendResponse({ label: "error", confidence: 0, score: 0 });
       });
 
-    return true;
+    return true; // async sendResponse
   }
 });
-
