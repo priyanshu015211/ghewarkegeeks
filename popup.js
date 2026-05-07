@@ -1,25 +1,46 @@
 document.addEventListener("DOMContentLoaded", () => {
     // ----------------------------------------------------------------
+    // ALL ELEMENT DECLARATIONS — hoisted to top so every callback
+    // and event listener below can safely reference them.
+    // (Original bug: half these were declared AFTER the storage
+    //  callback that referenced them, causing ReferenceErrors.)
+    // ----------------------------------------------------------------
+    const tabs                  = document.querySelectorAll(".tab-link");
+    const tabContents           = document.querySelectorAll(".tab-content");
+    const explanationTab        = document.querySelector('[data-tab="explanation"]');
+    const explanationContent    = document.getElementById("explanation-content");
+    const explanationBackBtn    = document.getElementById("explanation-back-btn");
+    const statusText            = document.getElementById("status");
+    const toggleButton          = document.getElementById("toggle");
+    const scanCountText         = document.getElementById("scanCountText");
+    const spmText               = document.getElementById("spmText");
+    const customRulesInput      = document.getElementById("customRulesInput");
+    const saveRulesBtn          = document.getElementById("saveRulesBtn");
+    const builtinRulesContainer = document.getElementById("builtin-rules");
+    const builtinRuleCountEl    = document.getElementById("builtin-rule-count");
+    const customRuleCountEl     = document.getElementById("custom-rule-count");
+    const totalRuleCountEl      = document.getElementById("total-rule-count");
+    const soundEnabledCheckbox  = document.getElementById("soundEnabled");
+    const clearLogBtn           = document.getElementById("clearLogBtn");
+    const logEntriesContainer   = document.getElementById("log-entries");
+    const topWordsChartContainer= document.getElementById("top-words-chart");
+    const categoryChartContainer= document.getElementById("category-chart");
+
+    // ----------------------------------------------------------------
     // TABS
     // ----------------------------------------------------------------
-    const tabs = document.querySelectorAll(".tab-link");
-    const tabContents = document.querySelectorAll(".tab-content");
-    const explanationTab = document.querySelector('[data-tab="explanation"]');
-    const explanationContent = document.getElementById('explanation-content');
-    const explanationBackBtn = document.getElementById('explanation-back-btn');
-
     function switchTab(tabId) {
         tabs.forEach(t => t.classList.remove("active"));
         tabContents.forEach(c => c.classList.remove("active"));
 
         const tab = document.querySelector(`[data-tab="${tabId}"]`);
         if (tab) tab.classList.add("active");
-        
+
         const content = document.getElementById(tabId);
         if (content) content.classList.add("active");
 
-        if (tabId === 'log') loadWarningLog();
-        if (tabId === 'analytics') generateAnalytics();
+        if (tabId === "log") loadWarningLog();
+        if (tabId === "analytics") generateAnalytics();
     }
 
     tabs.forEach(tab => {
@@ -27,17 +48,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     explanationBackBtn.addEventListener("click", () => {
-        chrome.storage.local.remove('explanationData');
-        explanationTab.style.display = 'none';
-        switchTab('settings');
+        chrome.storage.local.remove("explanationData");
+        explanationTab.style.display = "none";
+        switchTab("settings");
     });
-
-    // ----------------------------------------------------------------
-    // COMMON ELEMENTS
-    // ----------------------------------------------------------------
-    const statusText = document.getElementById("status");
-    const toggleButton = document.getElementById("toggle");
-    // ... (rest of element getters are the same)
 
     // ----------------------------------------------------------------
     // INITIAL LOAD
@@ -45,16 +59,14 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.storage.local.get(
         ["enabled", "dailyScans", "scanTimestamps", "customRules", "soundEnabled", "explanationData"],
         (data) => {
-            // Check for explanation data first
             if (data.explanationData) {
                 generateExplanation(data.explanationData);
-                explanationTab.style.display = 'block';
-                switchTab('explanation');
+                explanationTab.style.display = "block";
+                switchTab("explanation");
             } else {
-                explanationTab.style.display = 'none';
+                explanationTab.style.display = "none";
             }
 
-            // ... (rest of initial load is the same)
             const isEnabled = data.enabled ?? true;
             statusText.textContent = isEnabled ? "Active" : "Disabled";
             toggleButton.textContent = isEnabled ? "Disable Scanner" : "Enable Scanner";
@@ -64,21 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     );
 
-    // ... (rest of the file is largely the same, but for safety I will replace it all)
-    const scanCountText = document.getElementById("scanCountText");
-    const spmText = document.getElementById("spmText");
-    const customRulesInput = document.getElementById("customRulesInput");
-    const saveRulesBtn = document.getElementById("saveRulesBtn");
-    const builtinRulesContainer = document.getElementById("builtin-rules");
-    const builtinRuleCountEl = document.getElementById("builtin-rule-count");
-    const customRuleCountEl = document.getElementById("custom-rule-count");
-    const totalRuleCountEl = document.getElementById("total-rule-count");
-    const soundEnabledCheckbox = document.getElementById("soundEnabled");
-    const clearLogBtn = document.getElementById("clearLogBtn");
-    const logEntriesContainer = document.getElementById("log-entries");
-    const topWordsChartContainer = document.getElementById("top-words-chart");
-    const categoryChartContainer = document.getElementById("category-chart");
-    
     toggleButton.addEventListener("click", () => {
         chrome.storage.local.get({ enabled: true }, (data) => {
             const newState = !data.enabled;
