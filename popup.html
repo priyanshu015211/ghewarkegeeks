@@ -1,84 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>LLM Safety Guard</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <title>LLM Safety Settings</title>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <div class="header">
-        <h2>LLM Safety Guard</h2>
+  <div class="header">
+    <div class="title-row">
+      <h2>🛡️ LLM Safety</h2>
+      <label class="switch">
+        <input type="checkbox" id="master-toggle" checked>
+        <span class="slider round"></span>
+      </label>
     </div>
+    <div id="status-banner" class="status-banner">Loading...</div>
+  </div>
 
-    <div class="tabs">
-        <button class="tab-link active" data-tab="settings">Settings</button>
-        <button class="tab-link" data-tab="log">Log</button>
-        <button class="tab-link" data-tab="analytics">Analytics</button>
-        <button class="tab-link" data-tab="explanation" style="display: none;">Explanation</button>
+  <div class="section">
+    <h3>Sensitivity Tuning</h3>
+    <p class="desc">Adjust how aggressively the AI scans for toxic content.</p>
+    <div class="radio-group">
+      <label class="radio-container">
+        <input type="radio" name="sensitivity" value="strict">
+        <span class="radio-btn">Strict</span>
+      </label>
+      <label class="radio-container">
+        <input type="radio" name="sensitivity" value="balanced" checked>
+        <span class="radio-btn">Balanced</span>
+      </label>
+      <label class="radio-container">
+        <input type="radio" name="sensitivity" value="relaxed">
+        <span class="radio-btn">Relaxed</span>
+      </label>
     </div>
+  </div>
 
-    <div id="settings" class="tab-content active">
-        <p>Status: <span id="status">Active</span></p>
-        <button id="toggle">Disable Scanner</button>
-
-        <div id="stats">
-            <p id="scanCountText"></p>
-            <p id="spmText"></p>
-        </div>
-
-        <div id="rule-stats">
-            <p>Active built-in rules: <span id="builtin-rule-count">0</span></p>
-            <p>Your custom rules: <span id="custom-rule-count">0</span></p>
-            <p><b>Total active rules: <span id="total-rule-count">0</span></b></p>
-        </div>
-
-        <hr>
-
-        <h4>General Settings</h4>
-        <div class="setting-item">
-            <label for="soundEnabled">Enable Sound</label>
-            <input type="checkbox" id="soundEnabled">
-        </div>
-        
-        <hr>
-
-        <h4>Built-in Rules</h4>
-        <div id="builtin-rules"></div>
-
-        <hr>
-
-        <h4>Custom Blocked Words</h4>
-        <textarea 
-            id="customRulesInput"
-            placeholder="Add custom blocked words, comma-separated"
-            rows="3"></textarea>
-
-        <button id="saveRulesBtn">Save Rules</button>
+  <div class="section">
+    <div class="title-row">
+      <h3>PII Detection</h3>
+      <label class="switch">
+        <input type="checkbox" id="pii-toggle" checked>
+        <span class="slider round"></span>
+      </label>
     </div>
+    <p class="desc">Instantly block SSNs, Credit Cards, and warn on Emails/Phones.</p>
+  </div>
 
-    <div id="log" class="tab-content">
-        <div class="log-header">
-            <h4>Warning Log</h4>
-            <button id="clearLogBtn">Clear Log</button>
-        </div>
-        <div id="log-entries"></div>
+  <div class="section">
+    <h3>Trusted Whitelist</h3>
+    <p class="desc">Disable scanning entirely on specific domains (e.g., internal tools).</p>
+    <div class="whitelist-input-row">
+      <input type="text" id="whitelist-input" placeholder="e.g. corp-tool.com">
+      <button id="add-whitelist-btn">Add</button>
     </div>
+    <ul id="whitelist-ul" class="whitelist-list">
+      <!-- items added via js -->
+    </ul>
+  </div>
 
-    <div id="analytics" class="tab-content">
-        <h4>Top Blocked Words</h4>
-        <div id="top-words-chart"></div>
-
-        <hr>
-
-        <h4>Detections by Category</h4>
-        <div id="category-chart"></div>
-    </div>
-
-    <div id="explanation" class="tab-content">
-        <h4>Why was this flagged?</h4>
-        <div id="explanation-content"></div>
-        <button id="explanation-back-btn">Go Back</button>
-    </div>
-
-    <script src="popup.js"></script>
+  <script src="popup.js"></script>
 </body>
 </html>
