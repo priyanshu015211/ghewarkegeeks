@@ -31,17 +31,60 @@ function shouldRunML(text) {
   return true;
 }
 
-function showCriticalMLWarning(input) {
+function showTooltip(input, reason) {
+  let existing = document.getElementById("llm-safety-tooltip");
+  if (existing) existing.remove();
+
+  const tooltip = document.createElement("div");
+  tooltip.id = "llm-safety-tooltip";
+  tooltip.innerHTML = `⚠️ <b>Warning:</b> Your message appears highly toxic (${reason}). Please reconsider sending this.`;
+  
+  Object.assign(tooltip.style, {
+    position: "fixed",
+    backgroundColor: "#fff",
+    color: "#d32f2f",
+    border: "1px solid #d32f2f",
+    padding: "8px 12px",
+    borderRadius: "8px",
+    boxShadow: "0 4px 12px rgba(211,47,47,0.2)",
+    fontFamily: "system-ui, -apple-system, sans-serif",
+    fontSize: "13px",
+    zIndex: "2147483647", // Max z-index to stay above ChatGPT's UI
+    pointerEvents: "none",
+    opacity: "0",
+    transition: "opacity 0.2s ease-in-out",
+    whiteSpace: "nowrap"
+  });
+
+  document.body.appendChild(tooltip);
+
+  const rect = input.getBoundingClientRect();
+  tooltip.style.left = `${rect.left}px`;
+  tooltip.style.top = `${rect.top - 45}px`;
+
+  setTimeout(() => {
+    tooltip.style.opacity = "1";
+  }, 10);
+
+  setTimeout(() => {
+    tooltip.style.opacity = "0";
+    setTimeout(() => tooltip.remove(), 200);
+  }, 4000);
+}
+
+function showCriticalMLWarning(input, reason) {
   const originalBorder = input.style.border;
   const originalBoxShadow = input.style.boxShadow;
   
   input.style.border = "2px solid darkred";
   input.style.boxShadow = "0 0 10px rgba(255,0,0,0.5)";
   
+  showTooltip(input, reason);
+  
   setTimeout(() => {
     input.style.border = originalBorder;
     input.style.boxShadow = originalBoxShadow;
-  }, 1500);
+  }, 4000);
 }
 
 // ──────────────────────────────────────────────────────
@@ -76,15 +119,30 @@ function scanText(input) {
       chrome.storage.local.set({ dailyScans, scanTimestamps });
     });
 
-    chrome.runtime.sendMessage(
-      { type: "CLASSIFY_TEXT", text },
-      (mlResult) => {
-        if (chrome.runtime.lastError) return;
+    chrome.runtime.sendMessage({ type: "CLASSIFY_TEXT", text })
+      .then((mlResult) => {
         if (!mlResult) return;
 
         if (mlResult.label === "harmful") {
           console.log("⚠️ Harmful content detected! Score:", mlResult.confidence);
-          showCriticalMLWarning(input);
+          
+          let reason = "Toxicity";
+          if (mlResult.matchedRule) {
+             const match = mlResult.matchedRule.match(/\((.*?)\)/);
+             if (match && match[1]) {
+               const label = match[1];
+               if (label === 'threat') reason = 'Threatening Language';
+               else if (label === 'identity_hate') reason = 'Identity Hate / Slurs';
+               else if (label === 'obscene') reason = 'Obscenity';
+               else if (label === 'insult') reason = 'Insult / Harassment';
+               else if (label === 'severe_toxic') reason = 'Severe Toxicity';
+               else reason = label.charAt(0).toUpperCase() + label.slice(1);
+             } else {
+               reason = mlResult.matchedRule;
+             }
+          }
+
+          showCriticalMLWarning(input, reason);
           
           chrome.storage.local.get(["warningLog"], (data) => {
             const warningLog = data.warningLog || [];
@@ -98,8 +156,11 @@ function scanText(input) {
             chrome.storage.local.set({ warningLog, explanationData: mlResult });
           });
         }
-      }
-    );
+      })
+      .catch((err) => {
+        // Silently catch the annoying "message channel closed" Chrome bug
+        console.debug("ML Scanner async channel closed gracefully.");
+      });
   }, DEBOUNCE_MS);
 }
 

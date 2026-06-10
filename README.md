@@ -51,27 +51,31 @@ This extension helps **prevent unsafe interactions** by analyzing text **locally
 ```
 ghewarkegeeks/
 │
-├── model/              # Trained ML model files
-├── tokenizer/          # Tokenizer used for text preprocessing
-├── content.js          # Injected script to capture user input
-├── background.js       # Background logic and message handling
-├── scanner.js          # Core scanning and classification logic
+├── model/              # Trained ML model files (Xenova/toxic-bert)
+├── lib/                # ONNX runtime WebAssembly binaries
+├── src/
+│   ├── content.js      # Injected script to capture user input
+│   ├── background.js   # Background logic and offscreen document routing
+│   └── offscreen.js    # Core ML scanning using Xenova/transformers
+├── offscreen2.html     # Hidden document that executes the ML model
 ├── popup.html          # Extension UI
 ├── popup.js            # UI logic
 ├── style.css           # Styling for popup and alerts
 ├── rules.json          # Safety rules and categories
-└── manifest.json       # Browser extension configuration
+├── webpack.config.js   # Bundles offscreen.js for browser compatibility
+└── manifest.json       # Browser extension configuration (Manifest V3)
 ```
 ---
 
 ### 🔄 How they work together
 
 1. User types text on a webpage
-2. `content.js` captures the input
-3. Text is passed to the **tokenizer**
-4. Tokenized input goes to the **model**
-5. Model predicts risk category
-6. Extension blocks, warns, or allows the input
+2. `content.js` captures the input and detects pauses (debouncing).
+3. The text is sent via `chrome.runtime.sendMessage` to `background.js`.
+4. `background.js` spawns an invisible `offscreen2.html` document (if not already running).
+5. The text is forwarded to `offscreen.js` which runs the **Xenova/toxic-bert** ONNX model entirely locally in the browser via WebAssembly.
+6. The ML model predicts the toxicity category and returns a confidence score.
+7. `content.js` receives the result and injects a warning tooltip and red border if the text is flagged.
 
 ---
 
@@ -84,13 +88,22 @@ git clone https://github.com/priyanshu015211/ghewarkegeeks.git
 cd ghewarkegeeks
 ```
 
-### Step 2: Load extension in browser
+### Step 2: Build the Extension
+
+Since the ML engine uses Node modules, we need to bundle it for the browser:
+
+```bash
+npm install
+npx webpack
+```
+
+### Step 3: Load extension in browser
 
 * Open Chrome / Edge / Brave
 * Go to `chrome://extensions`
 * Enable **Developer Mode**
 * Click **Load Unpacked**
-* Select the project folder
+* Select the `ghewarkegeeks` project folder
 
 ---
 
