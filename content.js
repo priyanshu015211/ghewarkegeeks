@@ -32,12 +32,15 @@ function shouldRunML(text) {
 }
 
 function showCriticalMLWarning(input) {
+  const originalBorder = input.style.border;
+  const originalBoxShadow = input.style.boxShadow;
+  
   input.style.border = "2px solid darkred";
   input.style.boxShadow = "0 0 10px rgba(255,0,0,0.5)";
   
   setTimeout(() => {
-    input.style.border = "";
-    input.style.boxShadow = "";
+    input.style.border = originalBorder;
+    input.style.boxShadow = originalBoxShadow;
   }, 1500);
 }
 
@@ -46,7 +49,7 @@ function showCriticalMLWarning(input) {
 // ──────────────────────────────────────────────────────
 function scanText(input) {
   const text =
-    input.tagName === "TEXTAREA"
+    (input.tagName === "TEXTAREA" || input.tagName === "INPUT")
       ? input.value.trim()
       : input.innerText.trim();
 
@@ -59,39 +62,41 @@ function scanText(input) {
 
     console.log("Sending text to ML:", text.substring(0, 50) + "...");
 
+    chrome.storage.local.get(["dailyScans", "scanTimestamps"], (data) => {
+      const today = new Date().toISOString().slice(0, 10);
+      let dailyScans = data.dailyScans || { date: today, count: 0 };
+      if (dailyScans.date !== today) dailyScans = { date: today, count: 0 };
+      dailyScans.count++;
+      
+      const now = Date.now();
+      let scanTimestamps = data.scanTimestamps || [];
+      scanTimestamps.push(now);
+      scanTimestamps = scanTimestamps.filter(t => now - t < 60000); // Last minute
+      
+      chrome.storage.local.set({ dailyScans, scanTimestamps });
+    });
+
     chrome.runtime.sendMessage(
       { type: "CLASSIFY_TEXT", text },
       (mlResult) => {
-        if (chrome.runtime.lastError) {
-          console.error("Runtime error:", chrome.runtime.lastError);
-          return;
-        }
-        
-        if (!mlResult) {
-          console.error("No ML result received");
-          return;
-        }
+        if (chrome.runtime.lastError) return;
+        if (!mlResult) return;
 
-        console.log("ML response received:", mlResult);
-
-        // ⚠️ IMPORTANT:
-        // Neutral results are VALID.
-        // Only act on clearly harmful intent.
-        if (
-          mlResult.label === "harmful" &&
-          typeof mlResult.confidence === "number" &&
-          mlResult.confidence > 0.7
-        ) {
+        if (mlResult.label === "harmful") {
           console.log("⚠️ Harmful content detected! Score:", mlResult.confidence);
           showCriticalMLWarning(input);
-        } else if (mlResult.label === "error") {
-          console.warn("ML system error, using fallback");
-          // Use simple keyword fallback
-          const harmfulWords = ["kill", "suicide", "bomb", "murder", "harm"];
-          const lowerText = text.toLowerCase();
-          if (harmfulWords.some(word => lowerText.includes(word))) {
-            showCriticalMLWarning(input);
-          }
+          
+          chrome.storage.local.get(["warningLog"], (data) => {
+            const warningLog = data.warningLog || [];
+            warningLog.unshift({
+              timestamp: Date.now(),
+              rule: mlResult.matchedRule || text.substring(0, 20) + "...",
+              category: mlResult.category || "AI Detection",
+              score: Math.round(mlResult.confidence * 100)
+            });
+            if (warningLog.length > 50) warningLog.pop();
+            chrome.storage.local.set({ warningLog, explanationData: mlResult });
+          });
         }
       }
     );

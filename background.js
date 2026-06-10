@@ -20,10 +20,15 @@ async function getRules() {
 async function ensureOffscreen() {
   if (offscreenReady) return;
 
+  if (await chrome.offscreen.hasDocument()) {
+    offscreenReady = true;
+    return;
+  }
+
   if (!creatingOffscreen) {
     console.log("Creating offscreen document...");
     creatingOffscreen = chrome.offscreen.createDocument({
-      url: "offscreen.html",
+      url: "offscreen2.html",
       reasons: ["BLOBS"],
       justification: "Run safety pattern classifier"
     });
@@ -67,9 +72,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         await ensureOffscreen();
 
+        // Fetch storage data here, because offscreen doc might not have chrome.storage access
+        const settings = await new Promise(resolve => {
+          chrome.storage.local.get(["disabledCategories", "customRules", "sensitivitySettings"], resolve);
+        });
+
         const result = await chrome.runtime.sendMessage({
           type: "CLASSIFY_TEXT_OFFSCREEN",
-          text: message.text
+          text: message.text,
+          settings: settings
         });
 
         console.log("Offscreen result:", result);
