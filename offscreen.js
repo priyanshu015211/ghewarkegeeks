@@ -1,127 +1,123 @@
-// ------------------------------------------------------
-// offscreen.js — Pattern-based classifier (MV3 safe)
-// Replaces the broken ONNX pipeline. Uses rules.json
-// which actually exists, instead of intent_model.onnx
-// and config.json which do not.
-// ------------------------------------------------------
-
 console.log("Offscreen document loaded");
 
-// Signal background that we are ready
-chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" });
+// Set up transformers
+const { pipeline, env } = require('@xenova/transformers');
 
-// ------------------------------------------------------
-// Rules cache
-// ------------------------------------------------------
-let rulesCache = null;
-
-async function loadRules() {
-  if (rulesCache) return rulesCache;
-  const res = await fetch(chrome.runtime.getURL("rules.json"));
-  rulesCache = await res.json();
-  console.log("✅ rules.json loaded into offscreen");
-  return rulesCache;
+// Configure env for local models
+if (env) {
+  env.allowLocalModels = true;
+  env.allowRemoteModels = false;
+  env.useBrowserCache = false; // Fix: Cache API does not support chrome-extension://
+  // localModelPath acts as a base URL for local models
+  env.localModelPath = chrome.runtime.getURL('model/');
+  // Point to local WASM files safely
+  if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
+    env.backends.onnx.wasm.wasmPaths = chrome.runtime.getURL('lib/');
+    env.backends.onnx.wasm.numThreads = 1;
+  }
 }
 
-// ------------------------------------------------------
-// Intent boosters
-// Words/phrases that signal the user is asking HOW TO
-// do something harmful (raises confidence significantly)
-// ------------------------------------------------------
-const INTENT_PATTERNS = [
-  /\bhow\s+to\b/i,
-  /\bsteps?\s+to\b/i,
-  /\bguide\s+(me\s+)?to\b/i,
-  /\bwalk\s+me\s+through\b/i,
-  /\bhelp\s+me\b/i,
-  /\bshow\s+me\s+how\b/i,
-  /\bcan\s+you\s+(teach|explain|tell)\b/i,
-  /\binstructions?\s+for\b/i,
-  /\btutorial\b/i,
-];
+let classifierPipeline = null;
 
-function hasInstructionalIntent(text) {
-  return INTENT_PATTERNS.some(p => p.test(text));
-}
-
-// ------------------------------------------------------
-// CLASSIFY
-// Scores the text against every rule in rules.json.
-// Returns:
-//   label      — "harmful" | "neutral"
-//   confidence — 0.0–1.0
-//   score      — raw score (0–100 scale, capped at 100)
-//   matchedRules  — array of matched rule objects
-//   hasIntent  — whether instructional intent was found
-//   category   — category of the highest-weight match
-// ------------------------------------------------------
-async function classify(text) {
-  const rules = await loadRules();
-
-  const lower = text.toLowerCase();
-  const hasIntent = hasInstructionalIntent(text);
-
-  let totalScore = 0;
-  const matchedRules = [];
-
-  // Walk every category and every rule
-  for (const [category, entries] of Object.entries(rules)) {
-    for (const entry of entries) {
-      if (lower.includes(entry.rule.toLowerCase())) {
-        let weight = entry.weight;
-
-        // Intent boost: +30% of the rule weight, capped
-        if (hasIntent) {
-          weight = Math.min(100, weight + Math.round(weight * 0.3));
-        }
-
-        totalScore += weight;
-        matchedRules.push({ ...entry, category, weight });
-      }
+async function loadClassifier() {
+  if (!classifierPipeline && pipeline) {
+    try {
+      console.log("Loading toxic-bert model...");
+      // toxic-bert model is placed in model/Xenova/toxic-bert
+      classifierPipeline = await pipeline('text-classification', 'Xenova/toxic-bert');
+      console.log("Model loaded successfully.");
+    } catch (e) {
+      console.error("Failed to load model:", e);
     }
   }
-
-  // Multiple matches compound the risk (up to cap)
-  const rawScore = Math.min(100, totalScore);
-
-  // Normalize to 0.0–1.0 confidence
-  const confidence = Number((rawScore / 100).toFixed(3));
-
-  // Threshold: 0.35 → harmful (weight 35+ means at least one
-  // medium-weight rule like "hack" + intent, or one heavy rule)
-  const label = confidence >= 0.35 ? "harmful" : "neutral";
-
-  // Best-matched category (highest individual weight)
-  const topMatch = matchedRules.sort((a, b) => b.weight - a.weight)[0];
-  const category = topMatch?.category ?? "none";
-
-  console.log(`✅ Classify: label=${label} confidence=${confidence} score=${rawScore} matches=${matchedRules.length}`);
-
-  return {
-    label,
-    confidence,
-    score: rawScore,
-    matchedRules,
-    hasIntent,
-    category,
-  };
 }
 
-// ------------------------------------------------------
-// MESSAGE HANDLER
-// ------------------------------------------------------
+// Start loading immediately
+loadClassifier().then(() => {
+  chrome.runtime.sendMessage({ type: "OFFSCREEN_READY" });
+});
+
+async function classify(text, settings = {}) {
+  if (!classifierPipeline) {
+    return { label: "error", confidence: 0, score: 0 };
+  }
+
+  try {
+    const data = settings || {};
+    
+    // First check custom rules
+    const customRules = data.customRules || [];
+    const lowerText = text.toLowerCase();
+    for (const rule of customRules) {
+      if (lowerText.includes(rule.toLowerCase())) {
+        return {
+          label: "harmful",
+          confidence: 1.0,
+          score: 100,
+          matchedRule: rule,
+          category: "custom"
+        };
+      }
+    }
+
+    // Run AI model
+    const results = await classifierPipeline(text, { topk: null });
+    // results is typically an array of arrays or an array of objects depending on the model output shape.
+    // toxic-bert returns an array of label/score objects for the input string.
+    const labels = Array.isArray(results[0]) ? results[0] : results;
+    
+    let maxToxicScore = 0;
+    let maxToxicLabel = "neutral";
+    
+    const disabled = data.disabledCategories || [];
+    
+    for (const res of labels) {
+       if (res.label !== 'toxic' && res.label !== 'severe_toxic' && res.label !== 'obscene' && res.label !== 'threat' && res.label !== 'insult' && res.label !== 'identity_hate') continue;
+       
+       let mappedCategory = "AI Detection";
+       if (res.label === 'threat') mappedCategory = 'violence';
+       else if (res.label === 'identity_hate') mappedCategory = 'cybercrime';
+       else mappedCategory = 'self_harm';
+       
+       if (disabled.includes(mappedCategory)) continue;
+
+       if (res.score > maxToxicScore) {
+         maxToxicScore = res.score;
+         maxToxicLabel = res.label;
+       }
+    }
+    
+    let threshold = 0.5;
+    const globalSensitivity = Object.values(data.sensitivitySettings || {})[0] || 'high';
+    if (globalSensitivity === 'high') threshold = 0.4;
+    else if (globalSensitivity === 'medium') threshold = 0.6;
+    else if (globalSensitivity === 'low') threshold = 0.8;
+
+    const isHarmful = maxToxicScore >= threshold;
+
+    return {
+      label: isHarmful ? "harmful" : "neutral",
+      confidence: maxToxicScore,
+      score: Math.round(maxToxicScore * 100),
+      matchedRule: isHarmful ? `AI Pattern (${maxToxicLabel})` : "",
+      category: "AI Detection"
+    };
+    
+  } catch(e) {
+    console.error("Classifier runtime error:", e);
+    return { label: "error", confidence: 0, score: 0 };
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "CLASSIFY_TEXT_OFFSCREEN") {
-    classify(msg.text)
+    classify(msg.text, msg.settings)
       .then(res => {
-        console.log("✅ Prediction:", res);
         sendResponse(res);
       })
       .catch(err => {
-        console.error("❌ Classifier error:", err);
         sendResponse({ label: "error", confidence: 0, score: 0 });
       });
-
-    return true; // async sendResponse
+    return true; // async
   }
 });

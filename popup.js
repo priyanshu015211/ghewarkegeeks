@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let builtinCount = 0, customCount = 0;
         chrome.runtime.sendMessage({ type: "GET_RULES" }, (response) => {
             if (response?.rules) {
-                builtinCount = Object.keys(response.rules).length;
+                builtinCount = Object.values(response.rules).flat().length;
                 builtinRuleCountEl.textContent = builtinCount;
                 totalRuleCountEl.textContent = builtinCount + customCount;
             }
@@ -150,10 +150,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     checkbox.id = `category-${category}`;
                     checkbox.checked = isChecked;
                     checkbox.addEventListener("change", (e) => {
-                        const newDisabled = e.target.checked
-                            ? disabledCategories.filter(c => c !== category)
-                            : [...new Set([...disabledCategories, category])];
-                        chrome.storage.local.set({ disabledCategories: newDisabled });
+                        chrome.storage.local.get({ disabledCategories: [] }, (currentData) => {
+                            const newDisabled = e.target.checked
+                                ? currentData.disabledCategories.filter(c => c !== category)
+                                : [...new Set([...currentData.disabledCategories, category])];
+                            chrome.storage.local.set({ disabledCategories: newDisabled });
+                        });
                     });
                     const label = document.createElement("label");
                     label.setAttribute("for", `category-${category}`);
@@ -303,16 +305,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function generateExplanation(data) {
-        const { score, matchedRules, hasIntent } = data;
-        const mainRule = matchedRules.sort((a, b) => b.weight - a.weight)[0];
+        const { score, matchedRule, hasIntent, category } = data;
         let html = `<p>This content was flagged with a risk score of <strong>${score}</strong>.</p>`;
-        html += `<p>The main trigger was the phrase "<strong>${mainRule.rule}</strong>", which is in the <strong>${mainRule.category}</strong> category and has a base weight of <strong>${mainRule.weight}</strong>.</p>`;
+        html += `<p>The main trigger was "<strong>${matchedRule || 'AI Pattern Detection'}</strong>", which is in the <strong>${category || 'AI Detection'}</strong> category.</p>`;
 
-        if (matchedRules.length > 1) {
-            html += `<p>The score was increased because other risky words were also found.</p>`;
-        }
         if (hasIntent) {
-            html += `<p>The score was significantly increased because an <strong>instructional intent pattern</strong> (like "how to...") was detected alongside the risky keyword(s).</p>`;
+            html += `<p>The score was significantly increased because an <strong>instructional intent pattern</strong> was detected.</p>`;
         }
         explanationContent.innerHTML = html;
     }
