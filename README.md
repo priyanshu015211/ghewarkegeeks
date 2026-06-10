@@ -30,9 +30,17 @@ This extension helps **prevent unsafe interactions** by analyzing text **locally
 
   * Uses a trained ML model instead of simple keyword matching.
 
-* ⚠️ **Instant Warnings**
+* ⚠️ **Instant Warnings & Auto-Blocking**
+  * 3-Tier Severity Levels (Info, Warning, Block).
+  * Automatically disables the submit button for highly toxic text.
 
-  * Highlights unsafe content and notifies the user immediately.
+* 🛡️ **PII Detection Engine**
+  * Lightning-fast Regex pre-filter blocks SSN, Aadhaar, Credit Cards natively in the DOM.
+  * Warns users on Emails and Phone Numbers before sending text to the ML model.
+
+* 🔔 **Badge Notifications & Keyboard Shortcuts**
+  * Tracks blocked/warned messages per tab via extension icon badges.
+  * Use the `Escape` key to instantly dismiss safety tooltips.
 
 * 🔒 **Privacy-Preserving**
 
