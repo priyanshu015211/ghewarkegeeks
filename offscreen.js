@@ -19,6 +19,7 @@ if (env) {
 
 let classifierPipeline = null;
 
+
 async function loadClassifier() {
   if (!classifierPipeline && pipeline) {
     try {
@@ -55,7 +56,8 @@ async function classify(text, settings = {}) {
           confidence: 1.0,
           score: 100,
           matchedRule: rule,
-          category: "custom"
+          category: "custom",
+          severity: "block"
         };
       }
     }
@@ -87,19 +89,33 @@ async function classify(text, settings = {}) {
        }
     }
     
-    let threshold = 0.5;
-    const globalSensitivity = Object.values(data.sensitivitySettings || {})[0] || 'high';
-    if (globalSensitivity === 'high') threshold = 0.4;
-    else if (globalSensitivity === 'medium') threshold = 0.6;
-    else if (globalSensitivity === 'low') threshold = 0.8;
+    const sensitivity = data.sensitivity || "balanced";
 
-    const isHarmful = maxToxicScore >= threshold;
+    let tBlock = 0.85;
+    let tWarning = 0.60;
+    let tInfo = 0.40;
+
+    if (sensitivity === "strict") {
+      tBlock = 0.75;
+      tWarning = 0.50;
+      tInfo = 0.35;
+    } else if (sensitivity === "relaxed") {
+      tBlock = 0.95;
+      tWarning = 0.80;
+      tInfo = 0.60;
+    }
+
+    let severity = "neutral";
+    if (maxToxicScore >= tBlock) severity = "block";
+    else if (maxToxicScore >= tWarning) severity = "warning";
+    else if (maxToxicScore >= tInfo) severity = "info";
 
     return {
-      label: isHarmful ? "harmful" : "neutral",
+      label: severity === "neutral" ? "neutral" : "harmful",
+      severity: severity,
       confidence: maxToxicScore,
       score: Math.round(maxToxicScore * 100),
-      matchedRule: isHarmful ? `AI Pattern (${maxToxicLabel})` : "",
+      matchedRule: severity !== "neutral" ? `AI Pattern (${maxToxicLabel})` : "",
       category: "AI Detection"
     };
     

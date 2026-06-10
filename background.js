@@ -5,6 +5,14 @@
 let offscreenReady = false;
 let creatingOffscreen = null;
 
+const tabCounts = {};
+const tabSeverity = {}; // Tracks highest severity seen
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  delete tabCounts[tabId];
+  delete tabSeverity[tabId];
+});
+
 // Load rules from rules.json once at startup
 let rulesData = null;
 
@@ -80,10 +88,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const result = await chrome.runtime.sendMessage({
           type: "CLASSIFY_TEXT_OFFSCREEN",
           text: message.text,
-          settings: settings
+          settings: Object.assign({}, settings, message.settings || {})
         });
 
         console.log("Offscreen result:", result);
+        
+        // Handle badge logic
+        const severity = result?.severity;
+        if (sender && sender.tab && sender.tab.id && (severity === "block" || severity === "warning")) {
+          const tabId = sender.tab.id;
+          tabCounts[tabId] = (tabCounts[tabId] || 0) + 1;
+          
+          if (severity === "block" || !tabSeverity[tabId]) {
+            tabSeverity[tabId] = severity;
+          }
+          
+          const color = tabSeverity[tabId] === "block" ? "#d93025" : "#f5a623";
+          
+          chrome.action.setBadgeText({ text: tabCounts[tabId].toString(), tabId });
+          chrome.action.setBadgeBackgroundColor({ color, tabId });
+        }
+
         sendResponse(result);
       } catch (err) {
         console.error("Background classify error:", err);
