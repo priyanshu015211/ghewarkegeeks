@@ -72,14 +72,16 @@ async function classify(text, settings = {}) {
     let maxToxicLabel = "neutral";
     
     const disabled = data.disabledCategories || [];
+    const mapLabelToCategory = (label) => {
+      if (label === 'threat') return 'violence';
+      if (label === 'identity_hate') return 'cybercrime';
+      return 'self_harm';
+    };
     
     for (const res of labels) {
        if (res.label !== 'toxic' && res.label !== 'severe_toxic' && res.label !== 'obscene' && res.label !== 'threat' && res.label !== 'insult' && res.label !== 'identity_hate') continue;
        
-       let mappedCategory = "AI Detection";
-       if (res.label === 'threat') mappedCategory = 'violence';
-       else if (res.label === 'identity_hate') mappedCategory = 'cybercrime';
-       else mappedCategory = 'self_harm';
+       const mappedCategory = mapLabelToCategory(res.label);
        
        if (disabled.includes(mappedCategory)) continue;
 

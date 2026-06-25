@@ -104,6 +104,16 @@ function showSeverityUI(input, reason, severity) {
   }, 4000);
 }
 
+function clearSeverityUI(input) {
+  const tooltip = document.getElementById("llm-safety-tooltip");
+  if (tooltip) tooltip.remove();
+
+  input.style.border = "";
+  input.style.boxShadow = "";
+  input.__llmSeverityState = "neutral";
+  toggleSubmitButton(false);
+}
+
 // ──────────────────────────────────────────────────────
 // AUTO-BLOCK EVENT INTERCEPTION
 // ──────────────────────────────────────────────────────
@@ -213,6 +223,8 @@ function handleClassificationResult(mlResult, input, text) {
       if (warningLog.length > 50) warningLog.pop();
       chrome.storage.local.set({ warningLog, explanationData: mlResult });
     });
+  } else if (mlResult.label === "neutral") {
+    clearSeverityUI(input);
   }
 }
 
@@ -228,16 +240,18 @@ function scanText(input) {
       : input.innerText;
 
   if (text.trim() === "") {
-    input.__llmSeverityState = "neutral";
-    toggleSubmitButton(false);
-    let existing = document.getElementById("llm-safety-tooltip");
-    if (existing) existing.remove();
-    input.style.border = "";
-    input.style.boxShadow = "";
+    clearSeverityUI(input);
     return;
   }
 
-  if (!shouldRunML(text)) return;
+  if (!shouldRunML(text)) {
+    const cleaned = text.trim();
+    const words = cleaned ? cleaned.split(/\s+/) : [];
+    if (cleaned !== lastSentText && words.length < MIN_WORDS) {
+      clearSeverityUI(input);
+    }
+    return;
+  }
 
   const piiResult = scanForPII(text);
   if (piiResult) {
